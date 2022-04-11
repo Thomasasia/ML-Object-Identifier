@@ -11,6 +11,4 @@ qry = input("enter the search term: ")
 
 count = input("Enter the number of images you need:")
 
-timeout = input("Enter the timeout time: ")
-
-downloader.download(qry, limit=int(count), output_dir="./images/", timeout=int(timeout), verbose=True, error_protection = True)
+downloader.download(qry, limit=int(count), output_dir="./images/", timeout=20, verbose=True, error_protection = True)
