@@ -12,15 +12,16 @@ do
   python3 bbid.py -s "dog image" --limit 1000 -o ./images/dogs
   python3 bbid.py -s "dog picture" --limit 1000 -o ./images/dogs
 
-  echo "goat images"
-  python3 bbid.py -s "goat" --limit 1000 -o ./images/goats
-  python3 bbid.py -s "goat image" --limit 1000 -o ./images/goats
-  python3 bbid.py -s "goat picture" --limit 1000 -o ./images/goats
+  echo "snail images"
+  python3 bbid.py -s "snail" --limit 1000 -o ./images/snails
+  python3 bbid.py -s "snail image" --limit 1000 -o ./images/snails
+  python3 bbid.py -s "snail picture" --limit 1000 -o ./images/snails
 
   echo "Generic images"
   python3 bbid.py -s "image" --limit 1000 -o ./images/msc
   python3 bbid.py -s "scenery" --limit 500 -o ./images/msc
   python3 bbid.py -s "pub" --limit 200 -o ./images/msc
   python3 bbid.py -s "pokemon" --limit 200 -o ./images/msc
-  
+  python3 bbid.py -s "exotic animals" --limit 400 -o ./images/msc
+
 done
