@@ -29,18 +29,18 @@ def get_images(dir):
     return image_paths
 
 # formats the image to better suit our purposes
-def format_image(path):
+def format_image(path, num):
     try:
         im = Image.open(path)
         im = im.resize(RESIZE) # resize to be small
         im = im.convert('L') # convert to grayscale
         f, e = os.path.splitext(path) # remove file extension
-        newpath = FORMATED_PATH + f.split('\\', 1)[1] + ".jpg" # create new path to save at
+        newpath = FORMATED_PATH + f.split('\\')[1] + "\\" + str(num) + ".jpg" # create new path to save at
         try:
             im.save(newpath, 'JPEG')
         except OSError as e:
             print(e)
-    except PIL.UnidentifiedImageError or OSError:
+    except (PIL.UnidentifiedImageError, OSError):
         #print("Unknown image, skipping")
         pass
 
@@ -60,12 +60,18 @@ def format_all_images():
         ims = get_images(IMAGE_FOLDER + t)
         image_paths.append(ims)
         images_count += len(ims)
-
-    with alive_bar(images_count, title=f'Processing images', length = 50, bar="filling") as bar:
+    p = "images"
+    pc = 0
+    with alive_bar(images_count, title=f'Processing {p}', length = 50, bar="filling") as bar:
         for t in image_paths:
+            p = IMAGES_PATHS[pc]
+            current = 0
             for i in t:
-                format_image(i)
+                format_image(i, current)
+                current += 1
                 bar()
+            print(p + " images processed")
+            pc += 1
 
 if __name__ == "__main__":
     format_all_images()

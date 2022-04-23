@@ -102,4 +102,6 @@ if __name__ == "__main__":
 
     if process_images:
         format_all_images()
+    else:
+        print("Skipping image formating stage")
     lenet = train(20)
