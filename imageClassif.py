@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import requests
 from PIL import Image
 from io import BytesIO
-
+import sys
 import copy
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import numpy as np
+
+from image_processing import format_all_images
 
 numb_batch = 3
 T = torchvision.transforms.Compose([
@@ -36,7 +38,7 @@ dataiter = iter(train_dl)
 images, labels = dataiter.next()
 
 # show images
-imshow(torchvision.utils.make_grid(images))
+#imshow(torchvision.utils.make_grid(images))
 # print labels
 def create_lenet():
     model = nn.Sequential(
@@ -90,5 +92,14 @@ def train(numb_epoch=3, lr=1e-3):
     plt.plot(accuracies)
     return best_model
 
+if __name__ == "__main__":
+    print("Starting program. . .")
+    # run paremeters
+    process_images = True
+    for arg in sys.argv:
+        if arg == "-np": # code for "no process"
+            process_images = False
 
-lenet = train(20)
+    if process_images:
+        format_all_images()
+    lenet = train(20)
