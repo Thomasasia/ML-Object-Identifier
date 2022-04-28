@@ -133,6 +133,8 @@ dmypy.json
 ..gitignore.un~
 .gitignore~
 
+changedir.sh
+
 # images
 # images/
 imagesets/
