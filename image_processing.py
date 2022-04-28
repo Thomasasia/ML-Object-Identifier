@@ -3,6 +3,7 @@ from os.path import isfile, join
 import os, sys
 from PIL import Image # we use PIL to do our image processing, because it is very good.
 import PIL
+import numpy
 
 from alive_progress import alive_bar # progress bar is pretty important here
 
@@ -19,7 +20,7 @@ FORMATED_PATH = "imagesets\\"
 # folder where our unaltered image directories are located
 IMAGE_FOLDER = "images\\"
 # name of the individual image directories
-IMAGES_PATHS = ["cats", "dogs", "snails", "msc"]
+IMAGES_PATHS = ["cat", "dog", "snail", "msc"]
 
 # returns a list of images (files) in the provided directory
 def get_images(dir):
@@ -38,12 +39,16 @@ def format_image(path, num):
         newpath = FORMATED_PATH + f.split('\\')[1] + "\\" + str(num) + ".jpg" # create new path to save at
         try:
             im.save(newpath, 'JPEG')
+            return newpath
         except OSError as e:
-            print(e)
+            return None
     except (PIL.UnidentifiedImageError, OSError):
         #print("Unknown image, skipping")
-        pass
-
+        return None
+def convert_array(path):
+    im = Image.open(path)
+    I = numpy.asarray(im)
+    return I
 
 def format_all_images():
     try:
@@ -62,16 +67,29 @@ def format_all_images():
         images_count += len(ims)
     p = "images"
     pc = 0
+
+
+
+
     with alive_bar(images_count, title=f'Processing {p}', length = 50, bar="filling") as bar:
         for t in image_paths:
             p = IMAGES_PATHS[pc]
             current = 0
             for i in t:
-                format_image(i, current)
+                path = format_image(i, current)
                 current += 1
                 bar()
             print(p + " images processed")
             pc += 1
+    return formatted_paths
+
+# this goes in a separate function, so that we dont have to process the images each time we want a dictionary of them
+def obtain_dataset_paths():
+    formatted_paths = {} # to store the locations for the formatted pictures for the dataset
+    for type in IMAGES_PATHS:
+        formatted_paths[type] = get_images(FORMATED_PATH + type)
+    return formatted_paths
+
 
 if __name__ == "__main__":
     format_all_images()

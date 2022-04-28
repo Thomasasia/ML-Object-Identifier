@@ -14,18 +14,52 @@ from sklearn.metrics import confusion_matrix
 import pandas as pd
 import numpy as np
 
-from image_processing import format_all_images
+from image_processing import format_all_images, convert_array, obtain_dataset_paths
 
-device = torch.device("cuda:0") # Uncomment this to run on GPU
+# globals
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 numb_batch = 3
 T = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor()
     ])
-train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
-val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
+train_dl = None
+val_dl = None
 
-train_dl = torch.utils.data.DataLoader(train_data, batch_size = numb_batch)
-val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
+# defining our dataset
+class image_dataset(torch.utils.data.Dataset):
+    path_dict = {}
+    size = 0
+    def __init__(self, d):
+        torch.utils.data.Dataset.__init__(self)
+        path_dict = d
+        for t in path_dict:
+            for i in t:
+                size += 1
+    def __getitem__(self, idx):
+        sum = 0
+        key = 0
+        for t in path_dict:
+            if idx - sum > len(t):
+                sum += len(t)
+                key += 1
+            else:
+                path = t[idx - sum]
+                label = path_dict
+                return convert_array(path), label
+
+    def __len__(self):
+        return size
+
+
+
+
+def define_data(dset):
+    train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
+    val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
+
+    #train_dl = torch.utils.data.DataLoader(train_data, batch_size = numb_batch)
+    train_dl = torch.utils.data.DataLoader(dset, batch_size = numb_batch)
+    val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
@@ -35,8 +69,8 @@ def imshow(img):
 
 
 # get some random training images
-dataiter = iter(train_dl)
-images, labels = dataiter.next()
+#dataiter = iter(train_dl)
+#images, labels = dataiter.next()
 
 # show images
 #imshow(torchvision.utils.make_grid(images))
@@ -98,11 +132,17 @@ if __name__ == "__main__":
     # run paremeters
     process_images = True
     for arg in sys.argv:
-        if arg == "-np": # code for "no process"
+        if arg == "-np": # code for "no (image) processing"
             process_images = False
 
     if process_images:
         format_all_images()
     else:
         print("Skipping image formating stage")
+
+
+    formated_paths = obtain_dataset_paths()
+    dset = image_dataset(formatted_paths)
+    define_data(dset)
+
     lenet = train(20)
