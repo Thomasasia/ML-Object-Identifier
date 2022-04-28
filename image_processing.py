@@ -46,9 +46,12 @@ def format_image(path, num):
         #print("Unknown image, skipping")
         return None
 def convert_array(path):
-    im = Image.open(path)
-    I = numpy.asarray(im)
-    return I
+    try:
+        im = Image.open(path)
+        I = numpy.asarray(im)
+        return I
+    except FileNotFoundError:
+        print("Messed up path + " + path)
 
 def format_all_images():
     try:
@@ -81,7 +84,6 @@ def format_all_images():
                 bar()
             print(p + " images processed")
             pc += 1
-    return formatted_paths
 
 # this goes in a separate function, so that we dont have to process the images each time we want a dictionary of them
 def obtain_dataset_paths():

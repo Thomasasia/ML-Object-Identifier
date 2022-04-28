@@ -31,24 +31,24 @@ class image_dataset(torch.utils.data.Dataset):
     size = 0
     def __init__(self, d):
         torch.utils.data.Dataset.__init__(self)
-        path_dict = d
-        for t in path_dict:
+        self.path_dict = d
+        for t in self.path_dict:
             for i in t:
-                size += 1
+                self.size += 1
     def __getitem__(self, idx):
         sum = 0
         key = 0
-        for t in path_dict:
+        for t in self.path_dict:
             if idx - sum > len(t):
                 sum += len(t)
                 key += 1
             else:
                 path = t[idx - sum]
-                label = path_dict
+                label = self.path_dict
                 return convert_array(path), label
 
     def __len__(self):
-        return size
+        return self.size
 
 
 
@@ -57,6 +57,8 @@ def define_data(dset):
     train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
     val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
 
+    global train_dl
+    global val_dl
     #train_dl = torch.utils.data.DataLoader(train_data, batch_size = numb_batch)
     train_dl = torch.utils.data.DataLoader(dset, batch_size = numb_batch)
     val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
@@ -104,6 +106,8 @@ def validate(model, data):
     return correct*100./total
 
 def train(numb_epoch=3, lr=1e-3):
+    global train_dl
+    global val_dl
     print("Hello")
     accuracies = []
     cnn = create_lenet()
@@ -142,7 +146,7 @@ if __name__ == "__main__":
 
 
     formated_paths = obtain_dataset_paths()
-    dset = image_dataset(formatted_paths)
+    dset = image_dataset(formated_paths)
     define_data(dset)
 
     lenet = train(20)
