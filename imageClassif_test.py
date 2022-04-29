@@ -15,6 +15,7 @@ import pandas as pd
 import numpy as np
 
 from image_processing import format_all_images, convert_array, obtain_dataset_paths
+import image_processing
 
 # globals
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -38,13 +39,15 @@ class image_dataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         sum = 0
         key = 0
+        itr = 0
         for t in self.path_dict:
-            if idx - sum > len(t):
-                sum += len(t)
+            if idx - sum > len(self.path_dict[t]):
+                sum += len(self.path_dict[t])
                 key += 1
+                itr +=1
             else:
-                path = t[idx - sum]
-                label = self.path_dict
+                path = self.path_dict[t][idx - sum]
+                label = itr
                 return convert_array(path), label
 
     def __len__(self):
@@ -53,15 +56,16 @@ class image_dataset(torch.utils.data.Dataset):
 
 
 
-def define_data(dset):
-    train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
-    val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
+def define_data(dset, valset):
+    #train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
+    #val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
 
     global train_dl
     global val_dl
     #train_dl = torch.utils.data.DataLoader(train_data, batch_size = numb_batch)
     train_dl = torch.utils.data.DataLoader(dset, batch_size = numb_batch)
-    val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
+    val_dl = torch.utils.data.DataLoader(valset, batch_size = numb_batch)
+    #val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
@@ -79,18 +83,17 @@ def imshow(img):
 # print labels
 def create_lenet():
     model = nn.Sequential(
-        nn.Conv2d(1, 6, 5, padding=2),
+        nn.Conv2d(3, 6, 5, padding=2),
         nn.ReLU(),
-        nn.AvgPool2d(2, stride=2),
-        nn.Conv2d(6, 16, 5, padding=0),
+        nn.Conv2d(6, 3, 5, padding=0),
         nn.ReLU(),
-        nn.AvgPool2d(2, stride=2),
+        nn.AvgPool2d(2),
         nn.Flatten(),
-        nn.Linear(400, 120),
+        nn.Linear(529, 120),
         nn.ReLU(),
         nn.Linear(120, 84),
         nn.ReLU(),
-        nn.Linear(84, 10)
+        nn.Linear(84, 4)
     )
     return model
 
@@ -98,11 +101,12 @@ def validate(model, data):
     total = 0
     correct = 0
     for i, (images, labels) in enumerate(data):
-        x = model(images)
+        x = model(images.float())
         value, pred = torch.max(x,1)
         pred = pred.data
         total += x.size(0)
         correct += torch.sum(pred == labels)
+        print(str(correct))
     return correct*100./total
 
 def train(numb_epoch=3, lr=1e-3):
@@ -116,8 +120,15 @@ def train(numb_epoch=3, lr=1e-3):
     max_accuracy = 0
     for epoch in range(numb_epoch):
         for i, (images, labels) in enumerate(train_dl):
+            if len(images) < 3:
+                print("Wrong length image, continuing")
+                continue
+            #print("Image labels : " + str(labels))
             optimizer.zero_grad()
-            pred = cnn(images)
+            print("Shape of images" + str(np.shape(images)))
+            pred = cnn(images.float())
+            labels = torch.tensor(np.asarray(labels))
+            print("Lengths of things : " + str(len(pred)) + " lbl " + str(len(labels)))
             loss = cec(pred, labels)
             loss.backward()
             optimizer.step()
@@ -145,8 +156,9 @@ if __name__ == "__main__":
         print("Skipping image formating stage")
 
 
-    formated_paths = obtain_dataset_paths()
+    formated_paths, valpaths = obtain_dataset_paths()
     dset = image_dataset(formated_paths)
-    define_data(dset)
+    valset = image_dataset(valpaths)
+    define_data(dset, valset)
 
     lenet = train(20)

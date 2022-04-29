@@ -48,10 +48,13 @@ def format_image(path, num):
 def convert_array(path):
     try:
         im = Image.open(path)
+        im = im.convert('L')
         I = numpy.asarray(im)
+        # now we have to make the data 1 channel
         return I
     except FileNotFoundError:
         print("Messed up path + " + path)
+
 
 def format_all_images():
     try:
@@ -84,13 +87,36 @@ def format_all_images():
                 bar()
             print(p + " images processed")
             pc += 1
-
+import random
 # this goes in a separate function, so that we dont have to process the images each time we want a dictionary of them
 def obtain_dataset_paths():
     formatted_paths = {} # to store the locations for the formatted pictures for the dataset
+    val_paths = {}
     for type in IMAGES_PATHS:
         formatted_paths[type] = get_images(FORMATED_PATH + type)
-    return formatted_paths
+
+    for t in formatted_paths:
+        tlist = []
+        for i in formatted_paths[t]:
+            if random.randint(0,10) == 10:
+                formatted_paths[t].remove(i)
+                tlist.append(i)
+        val_paths[t] = tlist
+
+    error = False
+    for t in val_paths:
+        for i in val_paths[t]:
+            for tf in formatted_paths:
+                for p in formatted_paths[tf]:
+                    if i == p:
+                        print("NOOOOOOO THAT SHOULN'T HAPPEN")
+                        error = True
+    if error:
+        print("There was a mega error in the construction of a validation set")
+    else:
+        print("No validatio nset overlap")
+
+    return formatted_paths, val_paths
 
 
 if __name__ == "__main__":
