@@ -22,7 +22,7 @@ FORMATED_PATH = "imagesets\\"
 # folder where our unaltered image directories are located
 IMAGE_FOLDER = "images\\"
 # name of the individual image directories
-IMAGES_PATHS = ["cat", "dog", "snail", "msc"] # paths for each image directory. must be 1:1 with types
+IMAGES_PATHS = ["cat", "dog", "bird", "other"] # paths for each image directory. must be 1:1 with types
 
 # returns a list of images (files) in the provided directory
 def get_images(dir):
