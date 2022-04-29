@@ -236,7 +236,7 @@ if __name__ == "__main__":
         if arg == "-np": # code for "no (image) processing"
             process_images = False
         if arg[0:3] == "-ld" : # code for load (model)
-            loading_model = True.cpu().data.numpy().argmax(i
+            loading_model = True
             ld_name = arg[3:len(arg)]
         if arg[0:3] == "-sv" : # code for save (name)
             save_name = arg[3:len(arg)]
