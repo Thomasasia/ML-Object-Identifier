@@ -16,6 +16,7 @@ import numpy as np
 import random
 from image_processing import format_all_images, convert_array, obtain_dataset_paths
 import image_processing
+from alive_progress import alive_bar # progress bar is pretty important here
 
 # globals
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -54,7 +55,7 @@ class image_dataset(torch.utils.data.Dataset):
             else:
                 path = self.path_dict[t][idx - sum]
                 label = itr
-                return convert_array(path), label
+                return convert_array(path), label.to(device)
 
     def __len__(self):
         return self.size
@@ -93,13 +94,13 @@ def create_lenet():
         nn.ReLU(),
         nn.Conv2d(6, 3, 5, padding=0),
         nn.ReLU(),
-        nn.AvgPool2d(2),
+        nn.AvgPool2d(10),
         nn.Flatten(),
-        nn.Linear(529, 120),
+        nn.Linear(16, 18),
         nn.ReLU(),
-        nn.Linear(120, 84),
+        nn.Linear(18, 20),
         nn.ReLU(),
-        nn.Linear(84, 4)
+        nn.Linear(20, 4)
     )
     return model
 
@@ -107,14 +108,14 @@ def validate(model, data):
     total = 0
     correct = 0
     for i, (images, labels) in enumerate(data):
-        #if len(images) < 3:
-        #    continue
-        x = model(images.float())
+        if len(images) < 3:
+            continue
+        x = model(images.float().to(device))
         value, pred = torch.max(x,1)
         pred = pred.data
         total += x.size(0)
-        correct += torch.sum(pred == labels)
-        print(str(correct))
+        correct += torch.sum(pred.to(device) == labels.to(device))
+        #print(str(correct))
     return correct*100./total
 
 def train(numb_epoch=3, lr=1e-3):
@@ -123,32 +124,40 @@ def train(numb_epoch=3, lr=1e-3):
     print("Hello")
     accuracies = []
     cnn = create_lenet()
+    cnn.to(device)
     cec = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=lr)
     max_accuracy = 0
     for epoch in range(numb_epoch):
-        for i, (images, labels) in enumerate(train_dl):
-            if len(images) < 3:
-                print("Wrong length image, continuing")
-                continue
+        losses = []
+        with alive_bar(len(train_dl), title=f'Training epoch {epoch}', length = 40, bar="filling") as bar:
+            for i, (images, labels) in enumerate(train_dl):
+                if len(images) < 3:
+                    #print("Wrong length image, continuing")
+                    bar()
+                    continue
+                images.to(device)
+                labels.to(device)
 
-
-            #print("Image labels : " + str(labels))
-            optimizer.zero_grad()
-            print("Shape of images" + str(np.shape(images)))
-            pred = cnn(images.float())
-            labels = torch.tensor(np.asarray(labels))
-            print("Lengths of things : " + str(len(pred)) + " lbl " + str(len(labels)))
-            loss = cec(pred, labels)
-            loss.backward()
-            optimizer.step()
-        accuracy = float(validate(cnn, val_dl))
+                #print("Image labels : " + str(labels))
+                optimizer.zero_grad()
+                #print("Shape of images" + str(np.shape(images)))
+                pred = cnn(images.float().to(device))
+                labels = torch.tensor(np.asarray(labels))
+                #print("Lengths of things : " + str(len(pred)) + " lbl " + str(len(labels)))
+                loss = cec(pred.to(device), labels.to(device))
+                loss.backward()
+                optimizer.step()
+                losses.append(loss)
+                bar()
+        accuracy = float(validate(cnn.to(device), val_dl))
         accuracies.append(accuracy)
         if accuracy > max_accuracy:
             best_model = copy.deepcopy(cnn)
             max_accuracy = accuracy
             print("Saving Best Model with Accuracy: ", accuracy)
         print('Epoch:', epoch+1, "Accuracy :", accuracy, '%')
+
     plt.plot(accuracies)
     return best_model
 

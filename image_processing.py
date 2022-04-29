@@ -103,18 +103,7 @@ def obtain_dataset_paths():
                 tlist.append(i)
         val_paths[t] = tlist
 
-    error = False
-    for t in val_paths:
-        for i in val_paths[t]:
-            for tf in formatted_paths:
-                for p in formatted_paths[tf]:
-                    if i == p:
-                        print("NOOOOOOO THAT SHOULN'T HAPPEN")
-                        error = True
-    if error:
-        print("There was a mega error in the construction of a validation set")
-    else:
-        print("No validatio nset overlap")
+
 
     return formatted_paths, val_paths
 
