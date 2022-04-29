@@ -20,7 +20,8 @@ import image_processing
 from alive_progress import alive_bar # progress bar is pretty important here
 import pickle
 import matplotlib.image as mpimg
-
+import gc
+from statistics import mean
 DATA_PATH = "data\\"
 
 # globals
@@ -124,6 +125,8 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
     train_acc = []
     val_losses = []
     for epoch in range(numb_epoch):
+        torch.cuda.empty_cache()
+        gc.collect()
         losses = []
         correct = 0
         total = 0
@@ -151,6 +154,8 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
         epoc_train_acc = (correct*100./total).cpu().data.numpy()
         print("Train accuracy : " + str(epoc_train_acc))
         train_acc.append(epoc_train_acc)
+        torch.cuda.empty_cache()
+        gc.collect()
         accuracy, val_loss = validate(cnn.to(device), val_dl)
         accuracy = float(accuracy)
         val_loss = val_loss
@@ -160,15 +165,21 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
             max_accuracy = accuracy
             print("Saving Best Model with Accuracy: ", accuracy)
         print('Epoch:', epoch, "Accuracy :", accuracy, '%')
-        val_losses.append(val_loss)
-        total_losses.append(losses)
+        val_losses.append(lossmean(val_loss))
+        total_losses.append(lossmean(losses))
     # save the data for later viewing
-    save_data("train_loss", detensor(total_losses, type="loss"), 1, save_name=save_name)
+    save_data("train_loss", total_losses, 1, save_name=save_name)
     save_data("validation_accuracy", detensor(accuracies), 2, save_name=save_name)
     save_data("train_accuracy", detensor(train_acc), 2, save_name=save_name)
-    save_data("validation_loss", detensor(val_losses, type="loss"), 1, save_name=save_name)
+    save_data("validation_loss", val_losses, 1, save_name=save_name)
     save_data("model", best_model, 0, save_name=save_name)
     return best_model
+
+def lossmean(loss):
+    new_data = []
+    for i in loss:
+        new_data.append(i.cpu().data.numpy().flat[0])
+    return mean(new_data)
 
 # function to format data for vewing
 def detensor(data, type = "acc"):
