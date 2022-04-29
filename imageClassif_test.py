@@ -13,7 +13,7 @@ import copy
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import numpy as np
-
+import random
 from image_processing import format_all_images, convert_array, obtain_dataset_paths
 import image_processing
 
@@ -30,13 +30,19 @@ val_dl = None
 class image_dataset(torch.utils.data.Dataset):
     path_dict = {}
     size = 0
+    path_l = []
     def __init__(self, d):
         torch.utils.data.Dataset.__init__(self)
         self.path_dict = d
         for t in self.path_dict:
-            for i in t:
+            for i in self.path_dict[t]:
                 self.size += 1
+                self.path_l.append([i,t])
+
+        random.shuffle(self.path_l)
+
     def __getitem__(self, idx):
+        return convert_array(self.path_l[idx][0]), image_processing.IMAGES_PATHS.index(self.path_l[idx][1])
         sum = 0
         key = 0
         itr = 0
@@ -101,6 +107,8 @@ def validate(model, data):
     total = 0
     correct = 0
     for i, (images, labels) in enumerate(data):
+        #if len(images) < 3:
+        #    continue
         x = model(images.float())
         value, pred = torch.max(x,1)
         pred = pred.data
@@ -123,6 +131,8 @@ def train(numb_epoch=3, lr=1e-3):
             if len(images) < 3:
                 print("Wrong length image, continuing")
                 continue
+
+
             #print("Image labels : " + str(labels))
             optimizer.zero_grad()
             print("Shape of images" + str(np.shape(images)))
