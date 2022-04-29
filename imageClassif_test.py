@@ -94,13 +94,13 @@ def create_lenet():
         nn.ReLU(),
         nn.Conv2d(6, 3, 5, padding=0),
         nn.ReLU(),
-        nn.AvgPool2d(10),
+        nn.AvgPool2d(5),
         nn.Flatten(),
-        nn.Linear(16, 18),
+        nn.Linear(81, 50),
         nn.ReLU(),
-        nn.Linear(18, 20),
+        nn.Linear(50, 25),
         nn.ReLU(),
-        nn.Linear(20, 4)
+        nn.Linear(25, 4)
     )
     return model
 
@@ -118,7 +118,7 @@ def validate(model, data):
         #print(str(correct))
     return correct*100./total
 
-def train(numb_epoch=3, lr=1e-3):
+def train(numb_epoch=3, lr=1e-5):
     global train_dl
     global val_dl
     print("Hello")

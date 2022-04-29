@@ -5,6 +5,8 @@ from PIL import Image # we use PIL to do our image processing, because it is ver
 import PIL
 import numpy
 
+import math
+
 from alive_progress import alive_bar # progress bar is pretty important here
 
 # Suppress warnings, because they make our progress bars look less cool
@@ -95,6 +97,7 @@ def obtain_dataset_paths():
     for type in IMAGES_PATHS:
         formatted_paths[type] = get_images(FORMATED_PATH + type)
 
+    min_len = math.inf
     for t in formatted_paths:
         tlist = []
         for i in formatted_paths[t]:
@@ -102,6 +105,14 @@ def obtain_dataset_paths():
                 formatted_paths[t].remove(i)
                 tlist.append(i)
         val_paths[t] = tlist
+        fpl = len(formatted_paths[t])
+        if min_len > fpl:
+            min_len = fpl
+
+    for t in formatted_paths:
+        random.shuffle(formatted_paths[t])
+        while len(formatted_paths[t]) > min_len:
+            formatted_paths[t].pop()
 
 
 
