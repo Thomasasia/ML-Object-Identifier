@@ -114,7 +114,6 @@ def validate(model, data):
 def train(numb_epoch=3, lr=1e-4, save_name = ""):
     global train_dl
     global val_dl
-    print("Hello")
     accuracies = []
     cnn = create_lenet()
     cnn.to(device)
@@ -128,18 +127,15 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
         losses = []
         correct = 0
         total = 0
-        with alive_bar(len(train_dl), title=f'Training epoch {epoch}', length = 40, bar="filling") as bar:
+        with alive_bar(len(train_dl), title=f'Training epoch {epoch}', length = 40, bar="filling") as bar: # loading bar
             for i, (images, labels) in enumerate(train_dl):
                 if len(images) < 3:
-                    #print("Wrong length image, continuing")
                     bar()
                     continue
                 images.to(device)
                 labels.to(device)
 
-                #print("Image labels : " + str(labels))
                 optimizer.zero_grad()
-                #print("Shape of images" + str(np.shape(images)))
                 pred = cnn(images.float().to(device))
                 labels = torch.tensor(np.asarray(labels))
 
@@ -147,13 +143,14 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
                 p = p.data
                 total += pred.size(0)
                 correct += torch.sum(p.to(device) == labels.to(device))
-                #print("Lengths of things : " + str(len(pred)) + " lbl " + str(len(labels)))
                 loss = cec(pred.to(device), labels.to(device))
                 loss.backward()
                 optimizer.step()
                 losses.append(loss)
                 bar()
-        train_acc.append(correct*100./total)
+        epoc_train_acc = (correct*100./total).cpu().data.numpy()
+        print("Train accuracy : " + str(epoc_train_acc))
+        train_acc.append(epoc_train_acc)
         accuracy, val_loss = validate(cnn.to(device), val_dl)
         accuracy = float(accuracy)
         val_loss = val_loss
@@ -165,6 +162,7 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
         print('Epoch:', epoch, "Accuracy :", accuracy, '%')
         val_losses.append(val_loss)
         total_losses.append(losses)
+    # save the data for later viewing
     save_data("train_loss", detensor(total_losses, type="loss"), 1, save_name=save_name)
     save_data("validation_accuracy", detensor(accuracies), 2, save_name=save_name)
     save_data("train_accuracy", detensor(train_acc), 2, save_name=save_name)
@@ -172,19 +170,21 @@ def train(numb_epoch=3, lr=1e-4, save_name = ""):
     save_data("model", best_model, 0, save_name=save_name)
     return best_model
 
-
+# function to format data for vewing
 def detensor(data, type = "acc"):
     new_data = []
     for i in data:
         if type == "acc":
             if isinstance(i, float):
                 new_data.append(i)
+            elif isinstance(i, np.ndarray):
+                new_data.append(i.flat[0])
             else:
-                new_data.append(i.cpu().data.numpy().argmax())
+                new_data.append(i.cpu().data.numpy())
         elif type == "loss":
             subdata = []
             for g in i:
-                subdata.append(g.cpu().data.numpy().argmax())
+                subdata.append(g.cpu().data.numpy())
             new_data.append(subdata)
     return new_data
 
@@ -212,7 +212,7 @@ def save_data(name, data, type=0, save_name = ""):
     with open(filename, 'wb') as file:
         pickle.dump(data, file)
 
-
+# loads a cnn from the data folder
 def load_model(name = ""):
     files = image_processing.get_images("data\\model\\")
     model = None
@@ -244,17 +244,19 @@ if __name__ == "__main__":
             epochs = int(arg[3:len(arg)])
         if arg[0:3] == "-lr" : # code for learning rate
             lr=10 ** int(arg[3:len(arg)])
+
     if process_images:
         format_all_images()
     else:
         print("Skipping image formating stage")
 
-
+    # form datasets
     formated_paths, valpaths = obtain_dataset_paths()
     dset = image_dataset(formated_paths)
     valset = image_dataset(valpaths)
     define_data(dset, valset)
 
+    # train / load model
     if not loading_model:
         print("Training model")
         print("Learning rate : " + str(lr))
@@ -263,8 +265,11 @@ if __name__ == "__main__":
         print("Loading model")
         lenet = load_model(ld_name)
 
+    # process the test images if they have not already been processed
     if not process_images:
         format_all_images(only_test = True)
+
+    # construct dataset of test images
     ims = image_processing.obtain_test_data()
     testset = image_dataset(ims, LIST=True)
     test_dl = torch.utils.data.DataLoader(testset, batch_size = numb_batch)
@@ -272,6 +277,7 @@ if __name__ == "__main__":
     ims_tensor = []
     count = 0
     bin = -1
+    # build a set of image arrays, in bins of 3
     for i in ims:
         if count == 0:
             bin += 1
@@ -281,6 +287,7 @@ if __name__ == "__main__":
         if count == 2 : count = 0
         else : count += 1
     results = []
+    # run each batch through and record the output
     for batch in ims_tensor:
         if len(batch) == 3:
             images = torch.tensor(batch)
@@ -290,6 +297,7 @@ if __name__ == "__main__":
             p = p.data
             results = results + p.tolist()
 
+    # display the images, as well as what the CNN thinks the image is
     og_test_images = image_processing.get_images(image_processing.TEST_IMAGE_PATH)
     ims_arr = []
     for i in og_test_images:
