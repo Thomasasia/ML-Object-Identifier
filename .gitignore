@@ -136,6 +136,6 @@ dmypy.json
 changedir.sh
 
 # images
-# images/
+images/
 imagesets/
 FashionMNIST/
