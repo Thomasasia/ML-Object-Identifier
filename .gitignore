@@ -139,3 +139,4 @@ changedir.sh
 images/
 imagesets/
 FashionMNIST/
+test_images/formatted/

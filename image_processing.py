@@ -24,21 +24,29 @@ IMAGE_FOLDER = "images\\"
 # name of the individual image directories
 IMAGES_PATHS = ["cat", "dog", "bird", "other"] # paths for each image directory. must be 1:1 with types
 
+TEST_IMAGE_PATH = "test_images\\"
+
 # returns a list of images (files) in the provided directory
 def get_images(dir):
     image_paths = []
     for filename in os.listdir(dir):
-        image_paths.append(os.path.join(dir, filename))
+        exclude = 'formatted'
+        if filename != exclude:
+            image_paths.append(os.path.join(dir, filename))
     return image_paths
 
 # formats the image to better suit our purposes
-def format_image(path, num):
+def format_image(path, num, test_ims = False):
     try:
         im = Image.open(path)
         im = im.resize(RESIZE) # resize to be small
         im = im.convert('L') # convert to grayscale
         f, e = os.path.splitext(path) # remove file extension
-        newpath = FORMATED_PATH + f.split('\\')[1] + "\\" + str(num) + ".jpg" # create new path to save at
+        if not test_ims:
+            newpath = FORMATED_PATH + f.split('\\')[1] + "\\" + str(num) + ".jpg" # create new path to save at
+        else:
+            folder = TEST_IMAGE_PATH + "formatted\\"
+            newpath = folder + str(num) + ".jpg"
         try:
             im.save(newpath, 'JPEG')
             return newpath
@@ -58,33 +66,46 @@ def convert_array(path):
         print("Messed up path + " + path)
 
 
-def format_all_images():
-    try:
-        os.mkdir(FORMATED_PATH)
-    except FileExistsError:
-        pass
-    image_paths = []
-    images_count = 0
-    for t in IMAGES_PATHS:
+def format_all_images(only_test = False):
+    if not only_test:
         try:
-            os.mkdir(FORMATED_PATH + t)
+            os.mkdir(FORMATED_PATH)
         except FileExistsError:
             pass
-        ims = get_images(IMAGE_FOLDER + t)
-        image_paths.append(ims)
-        images_count += len(ims)
-    p = "images"
-    pc = 0
-    with alive_bar(images_count, title=f'Processing {p}', length = 50, bar="filling") as bar:
-        for t in image_paths:
-            p = IMAGES_PATHS[pc]
-            current = 0
-            for i in t:
-                path = format_image(i, current)
-                current += 1
-                bar()
-            print(p + " images processed")
-            pc += 1
+        image_paths = []
+        images_count = 0
+        for t in IMAGES_PATHS:
+            try:
+                os.mkdir(FORMATED_PATH + t)
+            except FileExistsError:
+                pass
+            ims = get_images(IMAGE_FOLDER + t)
+            image_paths.append(ims)
+            images_count += len(ims)
+        p = "images"
+        pc = 0
+        with alive_bar(images_count, title=f'Processing {p}', length = 50, bar="filling") as bar:
+            for t in image_paths:
+                p = IMAGES_PATHS[pc]
+                current = 0
+                for i in t:
+                    path = format_image(i, current)
+                    current += 1
+                    bar()
+                print(p + " images processed")
+                pc += 1
+    # format test images too
+    try:
+        os.mkdir(TEST_IMAGE_PATH + "formatted\\")
+    except FileExistsError:
+        pass
+    ims = get_images(TEST_IMAGE_PATH)
+    count = 0
+    for i in ims:
+        format_image(i, count, test_ims = True)
+        count +=1
+
+
 import random
 # this goes in a separate function, so that we dont have to process the images each time we want a dictionary of them
 def obtain_dataset_paths():
@@ -113,6 +134,10 @@ def obtain_dataset_paths():
 
 
     return formatted_paths, val_paths
+
+def obtain_test_data():
+    ims = get_images(TEST_IMAGE_PATH + "formatted\\")
+    return ims
 
 
 if __name__ == "__main__":

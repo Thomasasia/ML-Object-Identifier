@@ -19,6 +19,7 @@ from image_processing import format_all_images, convert_array, obtain_dataset_pa
 import image_processing
 from alive_progress import alive_bar # progress bar is pretty important here
 import pickle
+import matplotlib.image as mpimg
 
 DATA_PATH = "data\\"
 
@@ -36,30 +37,24 @@ class image_dataset(torch.utils.data.Dataset):
     path_dict = {}
     size = 0
     path_l = []
-    def __init__(self, d):
+    # LIST is set to true if the dataset is build off of a list, instead of a dictionary
+    def __init__(self, d, LIST = False):
         torch.utils.data.Dataset.__init__(self)
-        self.path_dict = d
-        for t in self.path_dict:
-            for i in self.path_dict[t]:
-                self.size += 1
-                self.path_l.append([i,t])
+        if LIST:
+            path_l = d
+        else:
+            # build the image list based on the provided dictionary data bins
+            self.path_dict = d
+            for t in self.path_dict:
+                for i in self.path_dict[t]:
+                    self.size += 1
+                    self.path_l.append([i,t]) # image path in [0], label in [1]
 
-        random.shuffle(self.path_l)
+            # shuffle the images, so that the same ones are not made subsequent
+            random.shuffle(self.path_l)
 
     def __getitem__(self, idx):
         return convert_array(self.path_l[idx][0]), image_processing.IMAGES_PATHS.index(self.path_l[idx][1])
-        sum = 0
-        key = 0
-        itr = 0
-        for t in self.path_dict:
-            if idx - sum > len(self.path_dict[t]):
-                sum += len(self.path_dict[t])
-                key += 1
-                itr +=1
-            else:
-                path = self.path_dict[t][idx - sum]
-                label = itr
-                return convert_array(path), label.to(device)
 
     def __len__(self):
         return len(self.path_l)
@@ -68,15 +63,12 @@ class image_dataset(torch.utils.data.Dataset):
 
 
 def define_data(dset, valset):
-    #train_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
-    #val_data = torchvision.datasets.FashionMNIST(root="./", download=True, train=True, transform=T)
 
+    # load the data for use in the CNN
     global train_dl
     global val_dl
-    #train_dl = torch.utils.data.DataLoader(train_data, batch_size = numb_batch)
     train_dl = torch.utils.data.DataLoader(dset, batch_size = numb_batch)
     val_dl = torch.utils.data.DataLoader(valset, batch_size = numb_batch)
-    #val_dl = torch.utils.data.DataLoader(val_data, batch_size = numb_batch)
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
@@ -84,14 +76,7 @@ def imshow(img):
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
 
-
-# get some random training images
-#dataiter = iter(train_dl)
-#images, labels = dataiter.next()
-
-# show images
-#imshow(torchvision.utils.make_grid(images))
-# print labels
+# here we define out cnn
 def create_lenet():
     model = nn.Sequential(
         nn.Conv2d(3, 6, 5, padding=2),
@@ -108,6 +93,7 @@ def create_lenet():
     )
     return model
 
+# function to validate the model
 def validate(model, data):
     total = 0
     correct = 0
@@ -123,10 +109,9 @@ def validate(model, data):
         correct += torch.sum(pred.to(device) == labels.to(device))
         loss = cec(x.to(device), labels.to(device))
         losses.append(loss)
-        #print(str(correct))
     return correct*100./total, losses
 
-def train(numb_epoch=3, lr=1e-4):
+def train(numb_epoch=3, lr=1e-4, save_name = ""):
     global train_dl
     global val_dl
     print("Hello")
@@ -177,19 +162,41 @@ def train(numb_epoch=3, lr=1e-4):
             best_model = copy.deepcopy(cnn)
             max_accuracy = accuracy
             print("Saving Best Model with Accuracy: ", accuracy)
-        print('Epoch:', epoch+1, "Accuracy :", accuracy, '%')
+        print('Epoch:', epoch, "Accuracy :", accuracy, '%')
         val_losses.append(val_loss)
         total_losses.append(losses)
-    save_data("train_loss", total_losses, 1)
-    save_data("validation_accuracy", accuracies, 2)
-    save_data("train_accuracy", train_acc, 2)
-    save_data("validation_loss", val_losses, 1)
-    save_data("model", best_model, 0)
-    plt.plot(accuracies)
+    save_data("train_loss", detensor(total_losses, type="loss"), 1, save_name=save_name)
+    save_data("validation_accuracy", detensor(accuracies), 2, save_name=save_name)
+    save_data("train_accuracy", detensor(train_acc), 2, save_name=save_name)
+    save_data("validation_loss", detensor(val_losses, type="loss"), 1, save_name=save_name)
+    save_data("model", best_model, 0, save_name=save_name)
     return best_model
 
+
+def detensor(data, type = "acc"):
+    new_data = []
+    for i in data:
+        if type == "acc":
+            if isinstance(i, float):
+                new_data.append(i)
+            else:
+                new_data.append(i.cpu().data.numpy().argmax())
+        elif type == "loss":
+            subdata = []
+            for g in i:
+                subdata.append(g.cpu().data.numpy().argmax())
+            new_data.append(subdata)
+    return new_data
+
+
 # save the data externally, so that it can be used in graphs and such
-def save_data(name, data, type=0):
+def save_data(name, data, type=0, save_name = ""):
+    if type != 0:
+        try:
+            data = data.tolist()
+        except AttributeError:
+            pass
+
     # make a dir in the data directory corrosponding to the name
     dir_path = DATA_PATH + name + "\\"
     try:
@@ -197,30 +204,46 @@ def save_data(name, data, type=0):
     except FileExistsError:
         pass
     f = image_processing.get_images(dir_path) # actually gets files
-
-    filename = dir_path + str(len(f))
-    #match type:
-        #case 0: # model
-        #    pickle.dump(data, dir_path + str(len(f)))
-        #case 1: # loss
-        #    pickle.dump(data, dir_path + str(len(f)))
-        #case 2: # accuracy
-        #    pickle.dump(data, dir_path + str(len(f)))
+    filename = ""
+    if save_name == "":
+        filename = dir_path + str(len(f))
+    else:
+        filename = dir_path + save_name
     with open(filename, 'wb') as file:
         pickle.dump(data, file)
 
 
-    # set name of the file to the time stamp or number or something and save it
-    pass
+def load_model(name = ""):
+    files = image_processing.get_images("data\\model\\")
+    model = None
+    if name == "":
+        model = files[-1] # most recent one
+    else:
+        model = "data\\model\\" + name
+    with open(model, 'rb') as file:
+        return pickle.load(file)
 
 if __name__ == "__main__":
     print("Starting program. . .")
     # run paremeters
     process_images = True
+    loading_model = False
+    ld_name = ""
+    save_name = ""
+    epochs = 100
+    lr=1e-4
     for arg in sys.argv:
         if arg == "-np": # code for "no (image) processing"
             process_images = False
-
+        if arg[0:3] == "-ld" : # code for load (model)
+            loading_model = True.cpu().data.numpy().argmax(i
+            ld_name = arg[3:len(arg)]
+        if arg[0:3] == "-sv" : # code for save (name)
+            save_name = arg[3:len(arg)]
+        if arg[0:3] == "-ep" : # code for epoch (count)
+            epochs = int(arg[3:len(arg)])
+        if arg[0:3] == "-lr" : # code for learning rate
+            lr=10 ** int(arg[3:len(arg)])
     if process_images:
         format_all_images()
     else:
@@ -232,4 +255,48 @@ if __name__ == "__main__":
     valset = image_dataset(valpaths)
     define_data(dset, valset)
 
-    lenet = train(1)
+    if not loading_model:
+        print("Training model")
+        print("Learning rate : " + str(lr))
+        lenet = train(epochs, save_name = save_name, lr = lr)
+    else:
+        print("Loading model")
+        lenet = load_model(ld_name)
+
+    if not process_images:
+        format_all_images(only_test = True)
+    ims = image_processing.obtain_test_data()
+    testset = image_dataset(ims, LIST=True)
+    test_dl = torch.utils.data.DataLoader(testset, batch_size = numb_batch)
+
+    ims_tensor = []
+    count = 0
+    bin = -1
+    for i in ims:
+        if count == 0:
+            bin += 1
+            ims_tensor.append([])
+        ia = image_processing.convert_array(i)
+        ims_tensor[bin].append(ia)
+        if count == 2 : count = 0
+        else : count += 1
+    results = []
+    for batch in ims_tensor:
+        if len(batch) == 3:
+            images = torch.tensor(batch)
+            images.to(device)
+            pred = lenet(images.float().to(device))
+            v, p = torch.max(pred,1)
+            p = p.data
+            results = results + p.tolist()
+
+    og_test_images = image_processing.get_images(image_processing.TEST_IMAGE_PATH)
+    ims_arr = []
+    for i in og_test_images:
+        ims_arr.append(image_processing.convert_array(i))
+    for i in range(len(ims_arr)):
+        fig = plt.figure()
+        imgplot = plt.imshow(mpimg.imread(og_test_images[i]))
+        fig.suptitle(image_processing.IMAGES_PATHS[results[i]], fontsize=30)
+        plt.xlabel(image_processing.IMAGES_PATHS[results[i]])
+        plt.show()
