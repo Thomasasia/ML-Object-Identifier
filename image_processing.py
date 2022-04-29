@@ -75,10 +75,6 @@ def format_all_images():
         images_count += len(ims)
     p = "images"
     pc = 0
-
-
-
-
     with alive_bar(images_count, title=f'Processing {p}', length = 50, bar="filling") as bar:
         for t in image_paths:
             p = IMAGES_PATHS[pc]

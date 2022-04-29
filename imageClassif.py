@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 import sys
+import os
 import copy
 from sklearn.metrics import confusion_matrix
 import pandas as pd
@@ -17,6 +18,9 @@ import random
 from image_processing import format_all_images, convert_array, obtain_dataset_paths
 import image_processing
 from alive_progress import alive_bar # progress bar is pretty important here
+import pickle
+
+DATA_PATH = "data\\"
 
 # globals
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -58,7 +62,7 @@ class image_dataset(torch.utils.data.Dataset):
                 return convert_array(path), label.to(device)
 
     def __len__(self):
-        return self.size
+        return len(self.path_l)
 
 
 
@@ -107,6 +111,8 @@ def create_lenet():
 def validate(model, data):
     total = 0
     correct = 0
+    cec = nn.CrossEntropyLoss()
+    losses = []
     for i, (images, labels) in enumerate(data):
         if len(images) < 3:
             continue
@@ -115,10 +121,12 @@ def validate(model, data):
         pred = pred.data
         total += x.size(0)
         correct += torch.sum(pred.to(device) == labels.to(device))
+        loss = cec(x.to(device), labels.to(device))
+        losses.append(loss)
         #print(str(correct))
-    return correct*100./total
+    return correct*100./total, losses
 
-def train(numb_epoch=3, lr=1e-5):
+def train(numb_epoch=3, lr=1e-4):
     global train_dl
     global val_dl
     print("Hello")
@@ -128,8 +136,13 @@ def train(numb_epoch=3, lr=1e-5):
     cec = nn.CrossEntropyLoss()
     optimizer = optim.Adam(cnn.parameters(), lr=lr)
     max_accuracy = 0
+    total_losses = []
+    train_acc = []
+    val_losses = []
     for epoch in range(numb_epoch):
         losses = []
+        correct = 0
+        total = 0
         with alive_bar(len(train_dl), title=f'Training epoch {epoch}', length = 40, bar="filling") as bar:
             for i, (images, labels) in enumerate(train_dl):
                 if len(images) < 3:
@@ -144,22 +157,61 @@ def train(numb_epoch=3, lr=1e-5):
                 #print("Shape of images" + str(np.shape(images)))
                 pred = cnn(images.float().to(device))
                 labels = torch.tensor(np.asarray(labels))
+
+                v, p = torch.max(pred,1)
+                p = p.data
+                total += pred.size(0)
+                correct += torch.sum(p.to(device) == labels.to(device))
                 #print("Lengths of things : " + str(len(pred)) + " lbl " + str(len(labels)))
                 loss = cec(pred.to(device), labels.to(device))
                 loss.backward()
                 optimizer.step()
                 losses.append(loss)
                 bar()
-        accuracy = float(validate(cnn.to(device), val_dl))
+        train_acc.append(correct*100./total)
+        accuracy, val_loss = validate(cnn.to(device), val_dl)
+        accuracy = float(accuracy)
+        val_loss = val_loss
         accuracies.append(accuracy)
         if accuracy > max_accuracy:
             best_model = copy.deepcopy(cnn)
             max_accuracy = accuracy
             print("Saving Best Model with Accuracy: ", accuracy)
         print('Epoch:', epoch+1, "Accuracy :", accuracy, '%')
-
+        val_losses.append(val_loss)
+        total_losses.append(losses)
+    save_data("train_loss", total_losses, 1)
+    save_data("validation_accuracy", accuracies, 2)
+    save_data("train_accuracy", train_acc, 2)
+    save_data("validation_loss", val_losses, 1)
+    save_data("model", best_model, 0)
     plt.plot(accuracies)
     return best_model
+
+# save the data externally, so that it can be used in graphs and such
+def save_data(name, data, type=0):
+    # make a dir in the data directory corrosponding to the name
+    dir_path = DATA_PATH + name + "\\"
+    try:
+        os.mkdir(dir_path)
+    except FileExistsError:
+        pass
+    f = image_processing.get_images(dir_path) # actually gets files
+
+    filename = dir_path + str(len(f))
+    #match type:
+        #case 0: # model
+        #    pickle.dump(data, dir_path + str(len(f)))
+        #case 1: # loss
+        #    pickle.dump(data, dir_path + str(len(f)))
+        #case 2: # accuracy
+        #    pickle.dump(data, dir_path + str(len(f)))
+    with open(filename, 'wb') as file:
+        pickle.dump(data, file)
+
+
+    # set name of the file to the time stamp or number or something and save it
+    pass
 
 if __name__ == "__main__":
     print("Starting program. . .")
@@ -180,4 +232,4 @@ if __name__ == "__main__":
     valset = image_dataset(valpaths)
     define_data(dset, valset)
 
-    lenet = train(500)
+    lenet = train(1)
